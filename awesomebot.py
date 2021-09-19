@@ -9,14 +9,11 @@ from discord.ext import commands
 
 bot = commands.Bot(command_prefix='$', help_command=None)
 
-# People with admin rights :O
-# Later we might replace this with checking for a role.
-admins=[ 756220448118669463, # Young Sun
-         732403731810877450, # Yeonwoo
-         145294584077877249, # Mrchance
-         873592977497395301, # Harleqin
-         477895596141707264  # René
-        ]
+file_lines=[]
+
+admin_channel_id= 887348367036907640
+#normal_channel_id= 874000674218733668
+normal_channel_id= 870604751354613770 # testing
 
 white_stone= "<:white_stone:882731089548939314>"
 black_stone= "<:black_stone:882730888453046342>"
@@ -24,58 +21,133 @@ black_stone= "<:black_stone:882730888453046342>"
 with open("data/token.txt") as f:
     token = f.readlines()[0] # Get your own token and put it in data/token.txt
 
-format="%Y_%m_%d_%H_%M_%S_%f"
+date_format="%Y_%m_%d_%H_%M_%S_%f"
+
+line_format="{:>4}   {:20}            {:>3} AB XXXX\n"
+column_format="{:>5}{}{:3}"
+
+# Every column from then on has 9 characters with no extra spaces in between. First five are the number right aligned, then the symbol, then /w3. The column entry is either:
+# 0+ or 0- for skipped players
+# 12?/b3 representing opponent, result (+/-/=) colour and handicap
+# Just after the pairings it looks like 12?/b3 or whatever.
 
 @bot.command()
 async def help(ctx):
-    helptext='$help : shows this help\n\n'+
+    if ctx.channel.id not in [normal_channel_id, admin_channel_id]: return
+    helptext=('$help : shows this help\n\n'+
 
-            '$join <OGS username> <OGS rank>: join the next tournament\n'+
-            '$abandon: abandon the current tournament. :(\n'+
-            '$skip: skips the round next week. If you don\'t plan to participate a week skip it to prevent losing points! \n'+
-            '$unskip: undoes the previous command \n\n'+
+            '$join <OGS rank> <OGS username>: join the next tournament\n'+
+            #'$abandon: abandon the current tournament. :(\n'+
+            #'$skip: skips the round next week. If you don\'t plan to participate a week skip it to prevent losing points! \n'+
+            #'$unskip: undoes the previous command \n\n'+
+            '$result <B/W/Annuled> <OGS game link>: reports the winner of the game. Please use this command in the assigned thread for your game! You have until Monday at 00.00 UTC to do so, or the administrators will decide the outcome.\n')
 
-            '$result <B/W/Annuled> <OGS game link>: reports the winner of the game. Please use this command in the assigned thread for your game! You have until Monday at 00.00 UTC to do so, or the administrators will decide the outcome.\n'+
+    admintext=('\n'+
+            '$standings: get the standings table\n'+
+            '$pairings: set pairings table (add h9 file). Make sure to import the next round, in the extended format "17+/b4".\n'+
+            '$newround: announce the next round. Presumes that you added the new pairings\n\n')
 
-    admintext='\n'+
-            '$round: lists the games played this round and their results.\n'+
-            '$assign <game number> <B/W/Annuled>: assigns the point of the game numbered <game number> in $round.\n'+
-            '$standings: enumerates the standings and pairings for the next round.\n'+
-            '$redopairings [(<number,number>)]: overwrite the pairings. Format is for example `$redopairings (1,2),(4,5),(6,7)`. Observe the lack of spaces! \n'+
-            '$start: confirms the start of the tournament or the next round. You can only do this in Monday, and with all games resolved!'
-
-    if ctx.author.id in admins: ctx.send(helptext+admintext)
-    else : ctx.send(helptext)
+    if ctx.channel.id== admin_channel_id: await ctx.send(helptext+admintext)
+    else : await ctx.send(helptext)
 
     # ctx has guild, message, author, send, and channel (?)
 
-# FILES
-# players.csv contains the info of the players:
-# discord servername <escaped>, discord user id, ogs user, ogs rank, skip "yes/no", abandon "yes/no"
-
-# pairings <round>
 
 @bot.command()
-async def join(ctx, arg1, arg2): #put the player in players.csv: discord servername <escaped please>, discord user id, ogs user, ogs rank, skip round "yes/no", abandoned "yes/no"
-    TODO
+async def join(ctx, arg1, arg2):
+    # Assumes the existence of an empty tournament file
+    valid_ranks= ([str(i) + "k" for i in range(1,31)] +
+                  [str(i)+"d" for i in range(1,9)] +
+                  [str(i)+"p" for i in range(1,9)])
+    valid_ranks= valid_ranks + [s.upper() for s in valid_ranks]
+    if arg1 not in valid_ranks:
+        await ctx.send("Invalid rank!")
+        return
 
-@bot.command()
-async def abandon(ctx): #Doesn't remove the player from players.csv. Sets up a flag. But this one is irreversible
-    TODO
+    with open("data/tournament.h3") as f: file_lines= f.readlines()
+
+    try:               nplayers= int(file_lines[-1][:3])
+    except ValueError: nplayers= 0
+
+    for l in file_lines:
+        if str(ctx.author.id) in l:
+            await ctx.send("Player already joined!")
+            return
+
+    file_lines.append(line_format.format(nplayers+1, str(ctx.author.id), arg1))
+
+    with open("data/tournament.h3", "w") as f: f.writelines(file_lines)
+
+    await ctx.send("Joined!")
 
 @bot.command()
 async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the game
-    TODO
+    # check the current game of this person.
+    # identify the opponent's user id and colour
+    # assign the point.
+
+    if arg1.lower() not in ["b", "w", "null"]:
+        await ctx.send("Invalid result! Please input `$result <b/w/null> <ogs link>`")
+        return
+
+    with open("data/tournament.h3") as f: file_lines= f.readlines()
+
+    for i in range(len(file_lines)):
+        l= file_lines[i]
+        if str(ctx.author.id) in l:
+            colour = l[-3]; result = l[-5]
+            if result!= "?":
+                await ctx.send("The tournament hasn't started yet!")
+                return
+
+            opponent_idx= int(l[-10:-5])-1
+
+            if opponent_idx == -1:
+                await ctx.send("You don't have an opponent this round!")
+                return
+
+            opponent_id= int([s.replace("x","") for s in file_lines if s[0]!=';'][opponent_idx][5:25])
+
+            if arg1.lower()== "null":
+                symbol1= "="; symbol2= "="
+            elif arg1.lower()== colour:
+                symbol1= "+"; symbol2= "-"
+            else:
+                symbol1= "-"; symbol2= "+"
+
+            file_lines[i]= l[:-5] + symbol1 + l[-4:]
+
+            for j in range(len(file_lines)):
+                l2 = file_lines[j]
+                if str(opponent_id) in l2: file_lines[j]= l2[:-5] + symbol2 + l2[-4:]
+            await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
+            break
+
+    with open("data/tournament.h3", "w") as f: f.writelines(file_lines)
 
 @bot.command()
-async def skip(ctx): #just write in players.csv that you plan to skip the next round. The flag gets overwritten next Monday.
-    TODO
+async def standings(ctx):
+    if ctx.channel.id== admin_channel_id:
+        file = discord.File("data/tournament.h3")
+        await ctx.send(file=file)
 
 @bot.command()
-async def unskip(ctx):
-    TODO
+async def pairings(ctx):
+    if ctx.channel.id == admin_channel_id:
+        await ctx.message.attachments[0].save("data/tournament.h3")
 
+@bot.command()
+async def newround(ctx):
+    return 0
+    # When everything is ready
 
+#@bot.command()
+#async def skip(ctx): #just write in players.csv that you plan to skip the next round. The flag gets overwritten next Monday.
+#    TODO
+
+#@bot.command()
+#async def unskip(ctx):
+#    TODO
 
 #@bot.command()
 #async def play(ctx, arg):
@@ -334,5 +406,5 @@ async def unskip(ctx):
 #        except ConnectionResetError:
 #            print("Connection error")
 
-bot.loop.create_task(background_task())
+#bot.loop.create_task(background_task())
 bot.run(token)
