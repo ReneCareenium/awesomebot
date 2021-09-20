@@ -15,6 +15,9 @@ admin_channel_id= 887348367036907640
 #normal_channel_id= 874000674218733668
 normal_channel_id= 870604751354613770 # testing
 
+awesome_server_id= 767835617002258443
+permitted_channel_ids= [874000674218733668, 887348367036907640, 870604751354613770]
+
 white_stone= "<:white_stone:882731089548939314>"
 black_stone= "<:black_stone:882730888453046342>"
 
@@ -33,6 +36,7 @@ column_format="{:>5}{}{:3}"
 
 @bot.command()
 async def help(ctx):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id not in [normal_channel_id, admin_channel_id]: return
     helptext=('$help : shows this help\n\n'+
 
@@ -55,6 +59,7 @@ async def help(ctx):
 
 @bot.command()
 async def join(ctx, arg1, arg2):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     # Assumes the existence of an empty tournament file
     valid_ranks= ([str(i) + "k" for i in range(1,31)] +
                   [str(i)+"d" for i in range(1,9)] +
@@ -82,6 +87,7 @@ async def join(ctx, arg1, arg2):
 
 @bot.command()
 async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the game
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     # check the current game of this person.
     # identify the opponent's user id and colour
     # assign the point.
@@ -95,12 +101,13 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
     for i in range(len(file_lines)):
         l= file_lines[i]
         if str(ctx.author.id) in l:
-            colour = l[-3]; result = l[-5]
-            if result!= "?":
-                await ctx.send("The tournament hasn't started yet!")
+            result_index= l.find("?")
+            if result_index==-1:
+                await ctx.send("You don't have new games to report! Please wait until the next round. If you want to change the outcome, contact MrChance.")
                 return
 
-            opponent_idx= int(l[-10:-5])-1
+            colour = l[result_index+2];
+            opponent_idx= int(l[result_index-4: result_index])-1
 
             if opponent_idx == -1:
                 await ctx.send("You don't have an opponent this round!")
@@ -115,11 +122,12 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
             else:
                 symbol1= "-"; symbol2= "+"
 
-            file_lines[i]= l[:-5] + symbol1 + l[-4:]
+            file_lines[i]= l[:result_index] + symbol1 + l[result_index+1:]
 
             for j in range(len(file_lines)):
                 l2 = file_lines[j]
-                if str(opponent_id) in l2: file_lines[j]= l2[:-5] + symbol2 + l2[-4:]
+                if str(opponent_id) in l2:
+                    file_lines[j]= l2[:result_index] + symbol2 + l2[result_index+1:]
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
             break
 
@@ -127,17 +135,20 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
 
 @bot.command()
 async def standings(ctx):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id== admin_channel_id:
         file = discord.File("data/tournament.h3")
         await ctx.send(file=file)
 
 @bot.command()
 async def pairings(ctx):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id == admin_channel_id:
         await ctx.message.attachments[0].save("data/tournament.h3")
 
 @bot.command()
 async def newround(ctx):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     return 0
     # When everything is ready
 
