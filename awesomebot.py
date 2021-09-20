@@ -37,7 +37,6 @@ column_format="{:>5}{}{:3}"
 @bot.command()
 async def help(ctx):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
-    if ctx.channel.id not in [normal_channel_id, admin_channel_id]: return
     helptext=('$help : shows this help\n\n'+
 
             '$join <OGS rank> <OGS username>: join the next tournament\n'+
@@ -103,7 +102,7 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
         if str(ctx.author.id) in l:
             result_index= l.find("?")
             if result_index==-1:
-                await ctx.send("You don't have new games to report! Please wait until the next round. If you want to change the outcome, contact MrChance.")
+                await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance, Harleqin or René.")
                 return
 
             colour = l[result_index+2];
