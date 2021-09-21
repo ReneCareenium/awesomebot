@@ -13,7 +13,7 @@ file_lines=[]
 
 admin_channel_id= 887348367036907640
 #normal_channel_id= 874000674218733668
-normal_channel_id= 870604751354613770 # testing
+testing_channel_id= 870604751354613770 # testing
 
 awesome_server_id= 767835617002258443
 permitted_channel_ids= [874000674218733668, 887348367036907640, 870604751354613770]
@@ -37,6 +37,7 @@ column_format="{:>5}{}{:3}"
 @bot.command()
 async def help(ctx):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
+
     helptext=('$help : shows this help\n\n'+
 
             '$join <OGS rank> <OGS username>: join the next tournament\n'+
@@ -70,7 +71,7 @@ async def join(ctx, arg1, arg2):
 
     with open("data/tournament.h3") as f: file_lines= f.readlines()
 
-    try:               nplayers= int(file_lines[-1][:3])
+    try:               nplayers= int(file_lines[-1][:4])
     except ValueError: nplayers= 0
 
     for l in file_lines:
