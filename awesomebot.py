@@ -13,7 +13,7 @@ file_lines=[]
 
 admin_channel_id= 887348367036907640
 #normal_channel_id= 874000674218733668
-testing_channel_id= 870604751354613770 # testing
+#testing_channel_id= 870604751354613770 # testing
 
 awesome_server_id= 767835617002258443
 permitted_channel_ids= [874000674218733668, 887348367036907640, 870604751354613770]
@@ -103,7 +103,7 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
         if str(ctx.author.id) in l:
             result_index= l.find("?")
             if result_index==-1:
-                await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance, Harleqin or René.")
+                await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance or Harleqin")
                 return
 
             colour = l[result_index+2];
@@ -129,6 +129,15 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
                 if str(opponent_id) in l2:
                     file_lines[j]= l2[:result_index] + symbol2 + l2[result_index+1:]
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
+
+            with open("data/games.csv", "a") as f:
+                p1 = await ctx.guild.fetch_member(ctx.author.id)
+                p2 = await ctx.guild.fetch_member(opponent_id)
+                if colour=="w": p1,p2 = p2, p1
+
+                r= (result_index - (len(l)-9*5))//9 +1 #Assume 5 rounds and correctly formatted file!
+                f.write("{},{},{},{},{},{},{}".format(str(p1.id), str(p2.id), p1.display_name, p2.display_name, r, arg1.lower(), arg2))
+
             break
 
     with open("data/tournament.h3", "w") as f: f.writelines(file_lines)
@@ -147,8 +156,23 @@ async def pairings(ctx):
         await ctx.message.attachments[0].save("data/tournament.h3")
 
 @bot.command()
-async def newround(ctx):
+async def newround(ctx, channel_id_str):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
+    if ctx.channel.id != admin_channel_id: return
+
+    assert(0) # TODO incomplete stuff!
+
+#    with open("data/tournament.h3") as f: file_lines= f.readlines()
+#
+#    rows=[]
+#
+#    for l in file_lines:
+#        if l[0]==";": continue
+#        pid= int([s.replace("x","") for s in file_lines if s[0]!=';'][opponent_idx][5:25])
+# = l[8:28]
+
+
+
     return 0
     # When everything is ready
 
