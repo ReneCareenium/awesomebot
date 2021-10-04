@@ -1,6 +1,8 @@
 import os
 import ast
 import time
+import requests
+import csv
 from datetime import datetime, timedelta
 import asyncio
 
@@ -44,7 +46,7 @@ async def help(ctx):
             #'$abandon: abandon the current tournament. :(\n'+
             #'$skip: skips the round next week. If you don\'t plan to participate a week skip it to prevent losing points! \n'+
             #'$unskip: undoes the previous command \n\n'+
-            '$result <B/W/Annuled> <OGS game link>: reports the winner of the game. Please use this command in the assigned thread for your game! You have until Monday at 00.00 UTC to do so, or the administrators will decide the outcome.\n')
+            '$result <OGS game link>: reports the winner of the game. Please use this command in the assigned thread for your game! You have until Monday at 00.00 UTC to do so, or the administrators will decide the outcome.\n')
 
     admintext=('\n'+
             '$standings: get the standings table\n'+
@@ -55,7 +57,6 @@ async def help(ctx):
     else : await ctx.send(helptext)
 
     # ctx has guild, message, author, send, and channel (?)
-
 
 @bot.command()
 async def join(ctx, arg1, arg2):
@@ -86,15 +87,11 @@ async def join(ctx, arg1, arg2):
     await ctx.send("Joined!")
 
 @bot.command()
-async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the game
+async def result(ctx, url): #Adds to round<number>.csv the outcome of the game
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     # check the current game of this person.
     # identify the opponent's user id and colour
     # assign the point.
-
-    if arg1.lower() not in ["b", "w", "null"]:
-        await ctx.send("Invalid result! Please input `$result <b/w/null> <ogs link>`")
-        return
 
     with open("data/tournament.h3") as f: file_lines= f.readlines()
 
@@ -115,12 +112,37 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
 
             opponent_id= int([s.replace("x","") for s in file_lines if s[0]!=';'][opponent_idx][5:25])
 
-            if arg1.lower()== "null":
-                symbol1= "="; symbol2= "="
-            elif arg1.lower()== colour:
-                symbol1= "+"; symbol2= "-"
-            else:
-                symbol1= "-"; symbol2= "+"
+            # 1. extract both ogs ids from players.csv
+            with open("data/players.csv") as f:
+                lines= [l[:-1].split(',') for l in f.readlines()]
+
+                ogs_id1= int(next(l[2] for l in lines if l[0]==str(ctx.author.id)))
+                ogs_id2= int(next(l[2] for l in lines if l[0]==str(opponent_id)))
+
+            # 2. extract ogs ids from the api and verify if they are right.
+            game_id= url.split('/')[-1]
+            try:
+                request_result = requests.get(f'http://online-go.com/api/v1/games/{game_id}').json()
+
+                if(ogs_id1== request_result["white" if colour=='b' else "black"]):
+                    await ctx.send("This game was played with the wrong colors. It is okay but please be careful next time!")
+                    colour="b" if colour =="w" else "w"
+
+                if (ogs_id1 != request_result["white" if colour=='w' else "black"] or ogs_id2 != request_result["white" if colour=='b' else "black"]):
+                    await ctx.send("This game was played with unexpected accounts! Please contact the tournament administrators")
+                    return
+
+                black_lost= request_result["black_lost"]
+                arg1= "w" if black_lost else "b" # what a mess!
+            except:
+                await ctx.send("OGS error! Please try again later")
+                return
+
+            # 3. set symbol2,symbol2
+
+            #Error!
+            if black_lost == (colour=="b") : symbol1="-"; symbol2= "+"
+            else:                            symbol1="+"; symbol2="-"
 
             file_lines[i]= l[:result_index] + symbol1 + l[result_index+1:]
 
@@ -136,7 +158,7 @@ async def result(ctx, arg1, arg2): #Adds to round<number>.csv the outcome of the
                 if colour=="w": p1,p2 = p2, p1
 
                 r= (result_index - (len(l)-9*5))//9 +1 #Assume 5 rounds and correctly formatted file!
-                f.write("{},{},{},{},{},{},{}".format(str(p1.id), str(p2.id), p1.display_name, p2.display_name, r, arg1.lower(), arg2))
+                f.write("{},{},{},{},{},{},{}\n".format(str(p1.id), str(p2.id), p1.display_name, p2.display_name, r, arg1.lower(), url))
 
             break
 
