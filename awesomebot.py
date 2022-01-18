@@ -15,8 +15,11 @@ bot = commands.Bot(command_prefix='$', help_command=None)
 
 file_lines=[]
 
-#admin_channel_id= 887348367036907640 Actual admin channel
-admin_channel_id= 870604751354613770
+#admin_channel_id= 887348367036907640 # Actual admin channel
+admin_channel_id= 870604751354613770 # Testing admin channel
+#announcements_channel_id=874000674218733668 # tournament-scheduling
+#announcements_channel_id=868837224203034624 # event-announcements
+announcements_channel_id= 870604751354613770
 #normal_channel_id= 874000674218733668
 #testing_channel_id= 870604751354613770 # testing
 
@@ -31,8 +34,6 @@ with open("data/token.txt") as f:
 
 date_format="%Y_%m_%d_%H_%M_%S_%f"
 
-line_format="{:>4}   {:20}            {:>3} AB XXXX\n"
-column_format="{:>5}{}{:3}"
 
 ogs_game_url= "https://online-go.com/game/"
 
@@ -54,7 +55,7 @@ async def help(ctx):
             '$result <OGS game link>: reports the winner of the game. Please use this command in #tournament-game-links! You have until Monday at 00.00 UTC to do so, or the administrators will decide the outcome.\n')
 
     admintext=('\n'+
-            #'$outcome <id> <W/L/D/N> <round>: Declares the outcome for the current game for player <id>, win/lose/draw/null. If <round> is specified, it will retroactively apply changes'+
+            '$outcome <id> <W/L/D/N> <round>: Declares the outcome for the current game for player <id>, win/lose/draw/null. If <round> is specified, it will retroactively apply changes'+
             #'$kick <id>: Kick player <id> from the tournament'+
             #'$standings: view the standings table\n'+
             '$pairings: compute and preview pairings. Will inform you of unfinished games beforehand. If this is the first round, it also prepares the files.\n' +
@@ -107,7 +108,7 @@ async def join(ctx, url, rank=None):
     with open("data/players.csv") as f:
         file_lines = f.readlines()
 
-    if ctx.author.id in [int(l.split(',')[0]) for l in file_lines]:
+    if ctx.author.id in [int(l.split(',')[0]) for l in file_lines if l!="\n" and l!=""]:
         await ctx.send("Player already joined!")
         return
 
@@ -157,10 +158,85 @@ async def unskip(ctx):
 
     with open("data/skips.txt", "w") as f: f.writelines([str(i)+"\n" for i in skips])
 
-# TODO
 # Print a .h file for the web app
 def make_mrchance_happy():
+    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
+
+    line_format="{:>4} {:20} x           {:>3} AB XXXX {:>4} {:>5} {:>5} 0"
+    column_format="{:>5}{}{:3}"
+    lines= ["; Pl Name                            Rk Co Club  MMS  SOSSOSOS\n"]
+
+    index= {state[i][0]:i for i in range(len(state))}
+
+    for i in range(len(state)):
+        p = state[i]
+        lines.append(line_format.format(i+1, p[0], p[1], p[2], p[3], p[4]))
+        for opp in p[5]:
+            if opp[0]!=0:
+                opp_position= index[opp[0]]+1
+                lines[-1]+= column_format.format(opp_position,opp[1],opp[2]+str(opp[3]) )
+            else:
+                lines[-1]+= column_format.format(0, opp[1], "")
+        lines[-1]+="\n"
+
+    with open("data/tournament.h1", "w") as f: f.writelines(lines)
     return
+
+# 6, "Mens Rea", "5k", 15, 47, 134, "4+/b0", "OGS link", "5?/w0", ""
+async def make_mrchance_happy2(ctx):
+    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
+
+    column_format="{}{}{}"
+    lines=[]
+
+    index= {state[i][0]:i for i in range(len(state))}
+
+    for i in range(len(state)):
+        p = state[i]
+        name= await ctx.guild.fetch_member(p[0])
+        name= name.display_name
+
+        lines.append(f"{i+1},{name},{p[1]},{p[2]},{p[3]},{p[4]}")
+        for opp in p[5]:
+            if opp[0]!=0:
+                opp_position= index[opp[0]]+1
+                lines[-1]+= ","+column_format.format(opp_position,opp[1],opp[2]+str(opp[3]) )
+                if opp[4]!="":
+                    lines[-1]+=","+ogs_game_url+opp[4]
+                else: lines[-1]+=","
+            else:
+                lines[-1]+= ","+column_format.format(0, opp[1], "")+","
+        lines[-1]+="\n"
+
+    with open("data/tournament.csv", "w") as f: f.writelines(lines)
+    return
+
+def pretty_print(state):
+
+    line_format="{:>4} {:20}{:>3}{:>4}{:>5}{:>5}"
+    column_format=" {:>2}{}{:2}"
+    lines= ["     Name                 Rk MMS  SOS SOSOS\n"]
+
+    index= {state[i][0]:i for i in range(len(state))}
+    with open("data/players.csv") as f: player_lines=[l[:-1].split(",") for l in f.readlines()]
+
+    for i in range(len(state)):
+        p = state[i]
+        name = next(l[1] for l in player_lines if int(l[0])==p[0])
+
+        #name= await ctx.guild.fetch_member(p[0])
+        #name= name.display_name
+
+        lines.append(line_format.format(i+1, name, p[1], p[2], p[3], p[4]))
+        for opp in p[5]:
+            if opp[0]!=0:
+                opp_position= index[opp[0]]+1
+                lines[-1]+= column_format.format(opp_position,opp[1],opp[2]+str(opp[3]) )
+            else:
+                lines[-1]+= column_format.format(0, opp[1], "")
+        lines[-1]+="\n"
+
+    return "```"+"".join(lines)+"```"
 
 @bot.command()
 async def pairings(ctx):
@@ -198,13 +274,14 @@ async def pairings(ctx):
     # 2. Check for unfinished matches in the last round.
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
-    if r!=0:
-        if len(state[0][5])==r-1:
-            await ctx.send("Some error happened! Players are already paired up!")
-            return
-        assert(len(state[0][5])==r)
+    if len(state[0][5])==r+1:
+        await ctx.send("Some error happened! Players are already paired up!")
+        return
 
-        unfinished_games=[(p[0], p[5][r][0]) for p in state if p[5][r][2]=="b" and p[5][r][1]=="?" and p[5][r][0]>0]
+    assert(len(state[0][5])==r)
+
+    if r!=0:
+        unfinished_games=[(p[0], p[5][r-1][0]) for p in state if p[5][r-1][2]=="b" and p[5][r-1][1]=="?" and p[5][r-1][0]>0]
 
         unfinished_games_text=""
         for (pid1, pid2) in unfinished_games:
@@ -216,6 +293,13 @@ async def pairings(ctx):
             await ctx.send("Pairings are impossible! The following matches are not over yet!\n\n" + unfinished_games_text)
             return
 
+    # 2.5 TODO compute MMS, SOS, SOSOS
+
+    # Lexicographic sort
+    state= sorted(state, key=lambda p: p[4], reverse=True)
+    state= sorted(state, key=lambda p: p[3], reverse=True)
+    state= sorted(state, key=lambda p: p[2], reverse=True)
+
     # 3. Prepare the weights for the blossom algorithm. In descending priority:
     #    - no repeated matches or bye
     #    - bye only people in the lower half of the standings.
@@ -223,20 +307,16 @@ async def pairings(ctx):
     #    - prioritize handicap games between people close in the rank list.
     #    - prioritize even games between people far in the rank list
 
-    state= sorted(state, key=lambda p: p[4], reverse=True)
-    state= sorted(state, key=lambda p: p[3], reverse=True)
-    state= sorted(state, key=lambda p: p[2], reverse=True)
-
     pairs=[]
     index= {state[i][0]:i for i in range(len(state))}
 
-    skips=[] # These players won't get any edge
+    with open("data/skips.txt") as f: skips=[int(s[:-1]) for s in f.readlines()]
 
     # These players will get a chance of being paired with 0
     if (len(state) - len(skips))%2 !=0:
         for p in state[(len(state)//2):]:
             if p[0] in skips: continue
-            if all(game[0]!=0 for game in p[5]):
+            if all(game[0]!=0 for game in p[5]): #TODO this will exclude skips and it should not
                 pairs.append((index[p[0]]+1, 0, 0))
 
     # These are the normal matches.
@@ -252,25 +332,44 @@ async def pairings(ctx):
 
     # call the blossom algorithm to compute a maximum matching.
     mates= mwmatching.maxWeightMatching(pairs, maxcardinality=True)
-    print("".join([f"{i}, {mates[i]}\n" for i in range(len(mates))]))
-    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
-
-    return
-    for i in len(1,mates):
-        if -1<=state[i][2]-state[mates[i]][2] <=1:
-            b1= len([_ for p in state[i][5] if p[3
-        color="n"
-        handicap=0
-        state[i][5].append( (index[mates[i]-1], "?", color, handicap, ""))
 
     # 4. Update the state and compute colors for each match
     #    - For handicap games assign the color normally
     #    - Assign Black to maximize Bernoulli posterior likelihood (more random than random!)
     #    - Turns out this means give Black to the player maximizing (W+1)/(B+1)
 
-    # 5. Make Mrchance happy
+    for i in range(1,len(mates)):
+        if mates[i]==0:
+            if i in skips: state[i-1][5].append((0, "-", "", 0, ""))
+            else: state[i-1][5].append((0,"+","",0,""))
+        else:
+            if -1<=state[i-1][2]-state[mates[i]-1][2] <=1:
+
+                b1= len([0 for p in state[i-1][5][:r] if p[2]=="b" and p[0]!=0 and p[3]==0])
+                w1= len([0 for p in state[i-1][5][:r] if p[2]=="w" and p[0]!=0 and p[3]==0])
+                b2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="b" and p[0]!=0 and p[3]==0])
+                w2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="w" and p[0]!=0 and p[3]==0])
+
+                if (b1+1)*(w2+1) == (b2+1)*(w1+1): color = "b" if i>mates[i] else "w"
+                else: color = "b" if (b1+1)*(w2+1) > (b2+1)*(w1+1) else "w"
+
+                handicap = 0
+            else:
+                handicap = max (0, abs(state[i-1][2]-state[mates[i]-1][2])-1)
+                color = "b" if i > mates[i] else "w"
+
+            state[i-1][5].append( (state[mates[i]-1][0], "?", color, handicap, ""))
+
+    # 5. Make Mrchance happy. Display the standings/pairings in the admin channel
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
+
     make_mrchance_happy()
+
+    text= pretty_print(state)
+    await ctx.send(text)
+
+    #await make_mrchance_happy2(ctx)
+    #await ctx.send(file=discord.File("data/tournament.csv"))
 
 @bot.command()
 async def newround(ctx, channel_id_str):
@@ -280,7 +379,7 @@ async def newround(ctx, channel_id_str):
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
     # 1. Check that pairings have been made.
-    if r == len(state[5][4]):
+    if r == len(state[0][5]):
         await ctx.send("Parings have not been done yet! Please begin the pairing process with $pairings")
         return
 
@@ -291,7 +390,15 @@ async def newround(ctx, channel_id_str):
     # 3. Announce current standings and next round pairings in the public channel
     #    Remind users the rules (public game, handicap, colors, time settings, AI)
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
-    #TODO
+
+    channel = bot.get_channel(announcements_channel_id)
+    await channel.send("Hi! There is a new round!")
+
+    text= pretty_print(state)
+    await ctx.send(text)
+
+    #await make_mrchance_happy2(ctx)
+    #await ctx.send(file=discord.File("data/tournament.csv"))
 
 # byes are games of the form 0+, while skips are 0-
 @bot.command()
@@ -369,28 +476,73 @@ async def result(ctx, url):
 
                 r= (result_index - (len(l)-9*5))//9 +1 #Assume 5 rounds and correctly formatted file!
                 f.write("{},{},{},{},{},{},{}\n".format(str(p1.id), str(p2.id), p1.display_name, p2.display_name, r, arg1.lower(), url))
-                #TODO add handicap to this file.
 
             break
 
     with open("data/tournament.h3", "w") as f: f.writelines(file_lines)
 
+#@bot.command()
+#async def swap(ctx, id1, id2):
+#    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
+#    if ctx.channel.id != admin_channel_id: return
+#
+#    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
+#    i= state.find(id1)
+#    j= state.find(id2)
+#
+#    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
+#    return #TODO
+
 @bot.command()
-async def standings(ctx):
+async def outcome(ctx, idx1, result):
+    #TODO only allow for this if we aren't in the middle of a pairings step
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
-    if ctx.channel.id== admin_channel_id:
-        file = discord.File("data/tournament.h3")
-        await ctx.send(file=file)
+    if ctx.channel.id != admin_channel_id: return
 
+    if result not in ["+","-"]:
+        await ctx.send("Error: outcome should be '+' or '-'")
+        return
 
+    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
+
+    r=int(r); idx1=int(idx1)
+
+    match = state[idx1-1][5][r-1]
+    state[idx1-1][5][r-1]=(match[0],result, match[2], match[3], match[4])
+
+    opp_id=state[idx1-1][5][r-1][0]
+    if opp_id!=0:
+        opp_index= next(j for j in range(len(state)) if state[j][0]==opp_id)
+        match = state[opp_index][5][r-1]
+        state[opp_index][5][r-1]=(match[0],'+' if result=='-' else '-', match[2],match[3],match[4])
+        #state[opp_index][5][r-1][1]='+' if result=='-' else '-'
+
+    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
+    #await make_mrchance_happy2(ctx)
+    #await ctx.send(file=discord.File("data/tournament.csv"))
+    text= pretty_print(state)
+    await ctx.send(text)
+    return
 
 #@bot.command()
-#async def skip(ctx): #just write in players.csv that you plan to skip the next round. The flag gets overwritten next Monday.
-#    TODO
-
-#@bot.command()
-#async def unskip(ctx):
-#    TODO
+#async def standings(ctx):
+#    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
+#    if ctx.channel.id!= admin_channel_id: return
+#
+#    text=   "```1\u200b 	76340676005226089\u200b4	5d\u200b	29	0\u200b\t 0\t 6?w0\n"+\
+#            "2\u200b 	880191257895387177\u200b 	3d\u200b 	29	0\u200b\t 0\t 5?w0\n"+\
+#            "3\u200b 	588976257530724352\u200b 	3d\u200b 	29	0\t 0\t [4?w0](https://online-go.com/game/38106552)\n"+\
+#            "4 	303594321431625738 	2d 	29	0\t 0\t 3?b0\n"+\
+#            "5 	237697813260009474 	1d 	29	0\t 0\t 2?b0\n"+\
+#            "6 	291952041901817867 	1d 	29	0\t 0\t 1?b0\n"+\
+#            "7 	417845944336384020 	2k 	28	0\t 0\t 8?w0\n```"
+#
+#    embedVar = discord.Embed(description=text, color=0x00ff00)
+#
+#    #embedVar.add_field(name="Standings!", value=text, inline=False)
+#    #embedVar.add_field(name="Field2", value="hi2", inline=False)
+#    await ctx.send(embed=embedVar)
+#    await ctx.send(text)
 
 #bot.loop.create_task(background_task())
 bot.run(token)
