@@ -19,8 +19,8 @@ upper_bar = 29 #1k
 
 #file_lines=[]
 
-#admin_channel_id= 887348367036907640 # Actual admin channel
-admin_channel_id= 870604751354613770 # Testing admin channel
+admin_channel_id= 887348367036907640 # Actual admin channel
+#admin_channel_id= 870604751354613770 # Testing admin channel
 #announcements_channel_id=874000674218733668 # tournament-scheduling
 #announcements_channel_id=868837224203034624 # event-announcements
 announcements_channel_id= 870604751354613770
@@ -337,8 +337,10 @@ async def pairings(ctx):
 
             #if p1[2]==p2[2]: weight= 100**100+(i-j)**2 #Thanks, python bignums!
             #else: weight= 100**(100-abs(p1[2]-p2[2])) - 10000*(i-j)**2
-            if p1[2]==p2[2]: weight= (100**100-1)*10**12 + (i-j)**2
-            else: weight= (100**100-100**abs(p1[2]-p2[2]))*10**12 - 10**6*(i-j)**2
+            #if p1[2]==p2[2]: weight= (100**100-1)*10**12 + (i-j)**2
+            #else: weight= (100**100-100**abs(p1[2]-p2[2]))*10**12 - 10**6*(i-j)**2
+            if p1[2]==p2[2]: weight= (100**100-1)*10**12 -(100-abs(i-j))**2
+            else: weight= (100**100-100**abs(p1[2]-p2[2]))*10**12 + 10**6*(i-j)**2
             pairs.append((index[p1[0]]+1, index[p2[0]]+1, weight))
 
     # call the blossom algorithm to compute a maximum matching.
