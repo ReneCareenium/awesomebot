@@ -13,7 +13,11 @@ from discord.ext import commands
 
 bot = commands.Bot(command_prefix='$', help_command=None)
 
-file_lines=[]
+# Max 100 players
+lower_bar = 10 #20k
+upper_bar = 29 #1k
+
+#file_lines=[]
 
 #admin_channel_id= 887348367036907640 # Actual admin channel
 admin_channel_id= 870604751354613770 # Testing admin channel
@@ -33,7 +37,6 @@ with open("data/token.txt") as f:
     token = f.readlines()[0] # Get your own token and put it in data/token.txt
 
 date_format="%Y_%m_%d_%H_%M_%S_%f"
-
 
 ogs_game_url= "https://online-go.com/game/"
 
@@ -71,6 +74,8 @@ async def help(ctx):
 # Inform the player of their
 @bot.command()
 async def join(ctx, url, rank=None):
+    ctx.send("Signups are closed! Contact a tournament administrator and we will see what we can do ;)")
+    return
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
 
     if url[-1]=="/": player_id= url.split('/')[-2]
@@ -213,9 +218,9 @@ async def make_mrchance_happy2(ctx):
 
 def pretty_print(state):
 
-    line_format="{:>4} {:20}{:>3}{:>4}{:>5}{:>5}"
+    line_format="{:>2} {:20}{:>3}{:>4}{:>5}{:>5}"
     column_format=" {:>2}{}{:2}"
-    lines= ["     Name                 Rk MMS  SOS SOSOS\n"]
+    lines= ["   Name                 Rk MMS  SOS SOSOS\n"]
 
     index= {state[i][0]:i for i in range(len(state))}
     with open("data/players.csv") as f: player_lines=[l[:-1].split(",") for l in f.readlines()]
@@ -256,15 +261,13 @@ async def pairings(ctx):
     # with open("data/state.txt", "w") as f: f.write(repr((r,state)))
 
     if not os.path.isfile("data/state.txt"):
-        lower_bar = 10 #20k
-        upper_bar = 29 #1k
 
         with open("data/players.csv") as f: player_lines=[l[:-1].split(",") for l in f.readlines()]
 
         #print(sorted(player_lines, key=lambda l: -ranktonumber(l[4])))
         r=0
         state= \
-            [(int(player[0]), player[4], ranktoscore(player[4],upper_bar, lower_bar), 0,0,[])
+            [[int(player[0]), player[4], ranktoscore(player[4],upper_bar, lower_bar), 0,0,[]]
              for player in sorted(player_lines, key=lambda l: -ranktonumber(l[4]))]
 
         with open("data/state.txt", "w") as f: f.write(repr((r,state)))
@@ -293,7 +296,13 @@ async def pairings(ctx):
             await ctx.send("Pairings are impossible! The following matches are not over yet!\n\n" + unfinished_games_text)
             return
 
-    # 2.5 TODO compute MMS, SOS, SOSOS
+    # 2.5 Compute MMS, SOS, SOSOS
+    for i in range(len(state)):
+        state[i][2]= ranktoscore(state[i][1], upper_bar,lower_bar) + len([g for g in state[i][5] if g[1]=="+"])
+    for i in range(len(state)):
+        state[i][3]= sum( next((p[2] for p in state if p[0]==game[0]), 0) for game in state[i][5])
+    for i in range(len(state)):
+        state[i][4]= sum( next((p[3] for p in state if p[0]==game[0]), 0) for game in state[i][5])
 
     # Lexicographic sort
     state= sorted(state, key=lambda p: p[4], reverse=True)
@@ -316,7 +325,7 @@ async def pairings(ctx):
     if (len(state) - len(skips))%2 !=0:
         for p in state[(len(state)//2):]:
             if p[0] in skips: continue
-            if all(game[0]!=0 for game in p[5]): #TODO this will exclude skips and it should not
+            if not any(game[0]==0 and game[1]=="+" for game in p[5]):
                 pairs.append((index[p[0]]+1, 0, 0))
 
     # These are the normal matches.
@@ -326,8 +335,10 @@ async def pairings(ctx):
             if p1[0] in skips or p2[0] in skips: continue
             if any(game[0]==p2[0] for game in p1[5]): continue
 
-            if p1[2]==p2[2]: weight= 100**100+(i-j)**2 #Thanks, python bignums!
-            else: weight= 100**(100-abs(p1[2]-p2[2])) - 10000*(i-j)**2
+            #if p1[2]==p2[2]: weight= 100**100+(i-j)**2 #Thanks, python bignums!
+            #else: weight= 100**(100-abs(p1[2]-p2[2])) - 10000*(i-j)**2
+            if p1[2]==p2[2]: weight= (100**100-1)*10**12 + (i-j)**2
+            else: weight= (100**100-100**abs(p1[2]-p2[2]))*10**12 - 10**6*(i-j)**2
             pairs.append((index[p1[0]]+1, index[p2[0]]+1, weight))
 
     # call the blossom algorithm to compute a maximum matching.
@@ -340,8 +351,8 @@ async def pairings(ctx):
 
     for i in range(1,len(mates)):
         if mates[i]==0:
-            if i in skips: state[i-1][5].append((0, "-", "", 0, ""))
-            else: state[i-1][5].append((0,"+","",0,""))
+            if i in skips: state[i-1][5].append([0, "-", "", 0, ""])
+            else: state[i-1][5].append([0,"+","",0,""])
         else:
             if -1<=state[i-1][2]-state[mates[i]-1][2] <=1:
 
@@ -358,7 +369,7 @@ async def pairings(ctx):
                 handicap = max (0, abs(state[i-1][2]-state[mates[i]-1][2])-1)
                 color = "b" if i > mates[i] else "w"
 
-            state[i-1][5].append( (state[mates[i]-1][0], "?", color, handicap, ""))
+            state[i-1][5].append( [state[mates[i]-1][0], "?", color, handicap, ""])
 
     # 5. Make Mrchance happy. Display the standings/pairings in the admin channel
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
@@ -372,7 +383,7 @@ async def pairings(ctx):
     #await ctx.send(file=discord.File("data/tournament.csv"))
 
 @bot.command()
-async def newround(ctx, channel_id_str):
+async def newround(ctx):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id != admin_channel_id: return
 
@@ -403,31 +414,28 @@ async def newround(ctx, channel_id_str):
 # byes are games of the form 0+, while skips are 0-
 @bot.command()
 async def result(ctx, url):
-    return #TODO make this function work again
 
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     # check the current game of this person.
     # identify the opponent's user id and colour
     # assign the point.
 
-    with open("data/tournament.csv") as f: file_lines= f.readlines()
+    #with open("data/tournament.csv") as f: file_lines= f.readlines()
+    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
-    for i in range(len(file_lines)):
-        l= file_lines[i]
-        if str(ctx.author.id) in l:
-            result_index= l.find("?")
-            if result_index==-1:
+    for i in range(len(state)):
+        g= state[i]
+        if ctx.author.id == g[0]:
+            if g[5][r-1]=="?":
                 await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance or Harleqin")
                 return
 
-            colour = l[result_index+2];
-            opponent_idx= int(l[result_index-4: result_index])-1
+            colour = g[5][r-1][2];
+            opponent_id= g[5][r-1][0]
 
-            if opponent_idx == -1:
+            if opponent_id == 0:
                 await ctx.send("You don't have an opponent this round!")
                 return
-
-            opponent_id= int([s.replace("x","") for s in file_lines if s[0]!=';'][opponent_idx][5:25])
 
             # 1. extract both ogs ids from players.csv
             with open("data/players.csv") as f:
@@ -440,6 +448,8 @@ async def result(ctx, url):
             game_id= url.split('/')[-1]
             try:
                 request_result = requests.get(f'http://online-go.com/api/v1/games/{game_id}').json()
+
+                # XXX perhaps check for correct handicap and time settings too?
 
                 if(ogs_id1== request_result["white" if colour=='b' else "black"]):
                     await ctx.send("This game was played with the wrong colors. It is okay but please be careful next time!")
@@ -461,12 +471,9 @@ async def result(ctx, url):
             if black_lost == (colour=="b") : symbol1="-"; symbol2= "+"
             else:                            symbol1="+"; symbol2="-"
 
-            file_lines[i]= l[:result_index] + symbol1 + l[result_index+1:]
-
-            for j in range(len(file_lines)):
-                l2 = file_lines[j]
-                if str(opponent_id) in l2:
-                    file_lines[j]= l2[:result_index] + symbol2 + l2[result_index+1:]
+            state[i][r-1] = symbol1
+            state[state.index(opponent_id)][r-1]=symbol2
+            #file_lines[i]= l[:result_index] + symbol1 + l[result_index+1:]
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
 
             with open("data/games.csv", "a") as f:
@@ -479,7 +486,7 @@ async def result(ctx, url):
 
             break
 
-    with open("data/tournament.h3", "w") as f: f.writelines(file_lines)
+    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
 
 #@bot.command()
 #async def swap(ctx, id1, id2):
@@ -491,11 +498,10 @@ async def result(ctx, url):
 #    j= state.find(id2)
 #
 #    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
-#    return #TODO
+#    return #XXX
 
 @bot.command()
 async def outcome(ctx, idx1, result):
-    #TODO only allow for this if we aren't in the middle of a pairings step
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id != admin_channel_id: return
 
@@ -505,17 +511,23 @@ async def outcome(ctx, idx1, result):
 
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
+    #Only allow for this if we aren't in the middle of a pairings step
+    if r==0 or r!=len(state[0][5]):
+        await ctx.send("Deciding outcomes manually is currently impossible!")
+        return
+
     r=int(r); idx1=int(idx1)
 
     match = state[idx1-1][5][r-1]
-    state[idx1-1][5][r-1]=(match[0],result, match[2], match[3], match[4])
+    #state[idx1-1][5][r-1]=(match[0],result, match[2], match[3], match[4])
+    state[idx1-1][5][r-1][1]=result
 
     opp_id=state[idx1-1][5][r-1][0]
     if opp_id!=0:
         opp_index= next(j for j in range(len(state)) if state[j][0]==opp_id)
         match = state[opp_index][5][r-1]
-        state[opp_index][5][r-1]=(match[0],'+' if result=='-' else '-', match[2],match[3],match[4])
-        #state[opp_index][5][r-1][1]='+' if result=='-' else '-'
+        #state[opp_index][5][r-1]=(match[0],'+' if result=='-' else '-', match[2],match[3],match[4])
+        state[opp_index][5][r-1][1]='+' if result=='-' else '-'
 
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
     #await make_mrchance_happy2(ctx)
