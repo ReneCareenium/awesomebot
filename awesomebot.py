@@ -60,10 +60,10 @@ async def help(ctx):
     admintext=('\n'+
             '$outcome <id> <W/L/D/N> <round>: Declares the outcome for the current game for player <id>, win/lose/draw/null. If <round> is specified, it will retroactively apply changes'+
             #'$kick <id>: Kick player <id> from the tournament'+
-            #'$standings: view the standings table\n'+
+            '$standings: view the standings table\n'+
             '$pairings: compute and preview pairings. Will inform you of unfinished games beforehand. If this is the first round, it also prepares the files.\n' +
-            '$swap <id1> <id2>: swap the opponents for two players. Only works after $pairings and before $newround!\n'+
-            '$newround: announce the next round. Prints standings and pairings in the relevant public channel\n\n')
+            #'$swap <id1> <id2>: swap the opponents for two players. Only works after $pairings and before $newround!\n'+
+            '$newround: announce the next round. Prints standings and pairings in the admin channel\n\n')
 
     if ctx.channel.id== admin_channel_id: await ctx.send(helptext+admintext)
     else : await ctx.send(helptext)
@@ -536,25 +536,12 @@ async def outcome(ctx, idx1, result):
     await ctx.send(text)
     return
 
-#@bot.command()
-#async def standings(ctx):
-#    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
-#    if ctx.channel.id!= admin_channel_id: return
-#
-#    text=   "```1\u200b 	76340676005226089\u200b4	5d\u200b	29	0\u200b\t 0\t 6?w0\n"+\
-#            "2\u200b 	880191257895387177\u200b 	3d\u200b 	29	0\u200b\t 0\t 5?w0\n"+\
-#            "3\u200b 	588976257530724352\u200b 	3d\u200b 	29	0\t 0\t [4?w0](https://online-go.com/game/38106552)\n"+\
-#            "4 	303594321431625738 	2d 	29	0\t 0\t 3?b0\n"+\
-#            "5 	237697813260009474 	1d 	29	0\t 0\t 2?b0\n"+\
-#            "6 	291952041901817867 	1d 	29	0\t 0\t 1?b0\n"+\
-#            "7 	417845944336384020 	2k 	28	0\t 0\t 8?w0\n```"
-#
-#    embedVar = discord.Embed(description=text, color=0x00ff00)
-#
-#    #embedVar.add_field(name="Standings!", value=text, inline=False)
-#    #embedVar.add_field(name="Field2", value="hi2", inline=False)
-#    await ctx.send(embed=embedVar)
-#    await ctx.send(text)
+@bot.command()
+async def standings(ctx):
+    if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
+    if ctx.channel.id!= admin_channel_id: return
+    text= pretty_print(state)
+    await ctx.send(text)
 
 #bot.loop.create_task(background_task())
 bot.run(token)
