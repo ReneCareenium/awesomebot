@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix='$', help_command=None)
 
 # Max 100 players
 lower_bar = 10 #20k
-upper_bar = 29 #1k
+upper_bar = 30 #1k
 
 #file_lines=[]
 
@@ -363,6 +363,7 @@ async def pairings(ctx):
                 b2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="b" and p[0]!=0 and p[3]==0])
                 w2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="w" and p[0]!=0 and p[3]==0])
 
+                #big suspicion I did this wrong TODO
                 if (b1+1)*(w2+1) == (b2+1)*(w1+1): color = "b" if i>mates[i] else "w"
                 else: color = "b" if (b1+1)*(w2+1) > (b2+1)*(w1+1) else "w"
 
