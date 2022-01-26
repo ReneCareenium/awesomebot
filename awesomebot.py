@@ -543,6 +543,8 @@ async def outcome(ctx, idx1, result):
 async def standings(ctx):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
     if ctx.channel.id!= admin_channel_id: return
+
+    with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
     text= pretty_print(state)
     await ctx.send(text)
 
