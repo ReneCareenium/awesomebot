@@ -427,14 +427,13 @@ async def result(ctx, url):
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
     for i in range(len(state)):
-        g= state[i]
         if ctx.author.id == g[0]:
-            if g[5][r-1]=="?":
+            if state[i][5][r-1]=="?":
                 await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance or Harleqin")
                 return
 
-            colour = g[5][r-1][2];
-            opponent_id= g[5][r-1][0]
+            colour = state[i][5][r-1][2];
+            opponent_id= state[i][5][r-1][0]
 
             if opponent_id == 0:
                 await ctx.send("You don't have an opponent this round!")
@@ -470,13 +469,16 @@ async def result(ctx, url):
 
             # 3. set symbol2,symbol2
 
-            #Error!
             if black_lost == (colour=="b") : symbol1="-"; symbol2= "+"
             else:                            symbol1="+"; symbol2="-"
 
-            state[i][r-1] = symbol1
-            state[state.index(opponent_id)][r-1]=symbol2
-            #file_lines[i]= l[:result_index] + symbol1 + l[result_index+1:]
+            state[idx1-1][5][r-1][1]=symbol1
+            state[state.index(opponent_id)][5][r-1][1]=symbol2
+
+            ogs_game_id= url.split("/")[-1]
+            state[idx1-1][5][r-1][4]=ogs_game_id
+            state[state.index(opponent_id)][5][r-1][4]=ogs_game_id
+
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
 
             with open("data/games.csv", "a") as f:
@@ -484,7 +486,6 @@ async def result(ctx, url):
                 p2 = await ctx.guild.fetch_member(opponent_id)
                 if colour=="w": p1,p2 = p2, p1
 
-                r= (result_index - (len(l)-9*5))//9 +1 #Assume 5 rounds and correctly formatted file!
                 f.write("{},{},{},{},{},{},{}\n".format(str(p1.id), str(p2.id), p1.display_name, p2.display_name, r, arg1.lower(), url))
 
             break
@@ -522,7 +523,6 @@ async def outcome(ctx, idx1, result):
     r=int(r); idx1=int(idx1)
 
     match = state[idx1-1][5][r-1]
-    #state[idx1-1][5][r-1]=(match[0],result, match[2], match[3], match[4])
     state[idx1-1][5][r-1][1]=result
 
     opp_id=state[idx1-1][5][r-1][0]
