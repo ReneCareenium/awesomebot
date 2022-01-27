@@ -470,11 +470,12 @@ async def result(ctx, url):
             else:                            symbol1="+"; symbol2="-"
 
             state[i][5][r-1][1]=symbol1
-            state[state.index(opponent_id)][5][r-1][1]=symbol2
+            opponent_idx= next(i for i in range(len(state)) if state[i][0]==opponent_id)
+            state[opponent_idx][5][r-1][1]=symbol2
 
             ogs_game_id= url.split("/")[-1]
             state[i][5][r-1][4]=ogs_game_id
-            state[state.index(opponent_id)][5][r-1][4]=ogs_game_id
+            state[opponent_idx][5][r-1][4]=ogs_game_id
 
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
 
