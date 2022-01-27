@@ -363,7 +363,6 @@ async def pairings(ctx):
                 b2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="b" and p[0]!=0 and p[3]==0])
                 w2= len([0 for p in state[mates[i]-1][5][:r] if p[2]=="w" and p[0]!=0 and p[3]==0])
 
-                #big suspicion I did this wrong TODO
                 if (b1+1)*(w2+1) == (b2+1)*(w1+1): color = "b" if i>mates[i] else "w"
                 else: color = "w" if (b1+1)*(w2+1) > (b2+1)*(w1+1) else "b"
 
@@ -426,7 +425,7 @@ async def result(ctx, url):
 
     for i in range(len(state)):
         if ctx.author.id == state[i][0]:
-            if state[i][5][r-1]!="?":
+            if state[i][5][r-1][1]!="?":
                 await ctx.send("You don't have new games to report! Please wait until the next round.")
                 return
 
