@@ -19,13 +19,13 @@ upper_bar = 30 #1k
 
 #file_lines=[]
 
-admin_channel_id= 887348367036907640 # Actual admin channel
-#admin_channel_id= 870604751354613770 # Testing admin channel
+admin_channel_id= 887348367036907640 # tournament-admins
+#admin_channel_id= 870604751354613770 # bots-testing
+
 #announcements_channel_id=874000674218733668 # tournament-scheduling
 #announcements_channel_id=868837224203034624 # event-announcements
-announcements_channel_id= 870604751354613770
-#normal_channel_id= 874000674218733668
-#testing_channel_id= 870604751354613770 # testing
+#announcements_channel_id= 870604751354613770 # bots-testing
+announcements_channel_id= 887348367036907640 # tournament-admins
 
 awesome_server_id= 767835617002258443
 permitted_channel_ids= [874000674218733668, 887348367036907640, 870604751354613770, 874000714848927774]
@@ -365,7 +365,7 @@ async def pairings(ctx):
 
                 #big suspicion I did this wrong TODO
                 if (b1+1)*(w2+1) == (b2+1)*(w1+1): color = "b" if i>mates[i] else "w"
-                else: color = "b" if (b1+1)*(w2+1) > (b2+1)*(w1+1) else "w"
+                else: color = "w" if (b1+1)*(w2+1) > (b2+1)*(w1+1) else "b"
 
                 handicap = 0
             else:
@@ -382,8 +382,6 @@ async def pairings(ctx):
     text= pretty_print(state)
     await ctx.send(text)
 
-    #await make_mrchance_happy2(ctx)
-    #await ctx.send(file=discord.File("data/tournament.csv"))
 
 @bot.command()
 async def newround(ctx):
@@ -406,13 +404,13 @@ async def newround(ctx):
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
 
     channel = bot.get_channel(announcements_channel_id)
-    await channel.send("Hi! There is a new round!")
+    await channel.send("This is the new round! Placeholder text explaining the rules here! This would go in a public channel!")
 
     text= pretty_print(state)
     await ctx.send(text)
 
-    #await make_mrchance_happy2(ctx)
-    #await ctx.send(file=discord.File("data/tournament.csv"))
+    await make_mrchance_happy2(ctx)
+    await ctx.send("Admin-only csv file!", file=discord.File("data/tournament.csv"))
 
 # byes are games of the form 0+, while skips are 0-
 @bot.command()
@@ -429,7 +427,7 @@ async def result(ctx, url):
     for i in range(len(state)):
         if ctx.author.id == state[i][0]:
             if state[i][5][r-1]!="?":
-                await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance or Harleqin")
+                await ctx.send("You don't have new games to report! Please wait until the next round.")
                 return
 
             colour = state[i][5][r-1][2];
