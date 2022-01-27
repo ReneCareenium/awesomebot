@@ -427,8 +427,8 @@ async def result(ctx, url):
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
 
     for i in range(len(state)):
-        if ctx.author.id == g[0]:
-            if state[i][5][r-1]=="?":
+        if ctx.author.id == state[i][0]:
+            if state[i][5][r-1]!="?":
                 await ctx.send("You don't have new games to report! Please wait until the next round. If you would like to change the outcome of a previous game, contact mrchance or Harleqin")
                 return
 
@@ -472,11 +472,11 @@ async def result(ctx, url):
             if black_lost == (colour=="b") : symbol1="-"; symbol2= "+"
             else:                            symbol1="+"; symbol2="-"
 
-            state[idx1-1][5][r-1][1]=symbol1
+            state[i][5][r-1][1]=symbol1
             state[state.index(opponent_id)][5][r-1][1]=symbol2
 
             ogs_game_id= url.split("/")[-1]
-            state[idx1-1][5][r-1][4]=ogs_game_id
+            state[i][5][r-1][4]=ogs_game_id
             state[state.index(opponent_id)][5][r-1][4]=ogs_game_id
 
             await ctx.send("Game result recorded! "+ {"b":"Black won!", "w":"White won!", "null":"Game anulled!"}[arg1.lower()])
