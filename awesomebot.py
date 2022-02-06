@@ -338,7 +338,7 @@ async def pairings(ctx):
     for i in range(len(state)):
         for j in range(i+1,len(state)):
             p1= state[i]; p2=state[j]
-            if p1[0] in skips or p2[0] in skips: continue
+            if (p1[0] in skips) or (p2[0] in skips): continue
             if any(game[0]==p2[0] for game in p1[5]): continue
 
             #if p1[2]==p2[2]: weight= 100**100+(i-j)**2 #Thanks, python bignums!
@@ -358,9 +358,13 @@ async def pairings(ctx):
     #    - Turns out this means give Black to the player maximizing (W+1)/(B+1)
 
     for i in range(1,len(mates)):
+        #if mates[i]==0:
+        #    if i in skips: state[i-1][5].append([0, "-", "", 0, ""])
+        #    else: state[i-1][5].append([0,"+","",0,""])
         if mates[i]==0:
-            if i in skips: state[i-1][5].append([0, "-", "", 0, ""])
-            else: state[i-1][5].append([0,"+","",0,""])
+            state[i-1][5].append([0,"+","",0,""])
+        elif mates[i]==-1:
+            state[i-1][5].append([0, "-", "", 0, ""])
         else:
             if -1<=state[i-1][2]-state[mates[i]-1][2] <=1:
 
