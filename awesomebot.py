@@ -7,6 +7,7 @@ import math
 from datetime import datetime, timedelta
 import asyncio
 import mwmatching
+import csv
 
 import discord
 from discord.ext import commands
@@ -72,6 +73,7 @@ async def help(ctx):
 
 # Just take the data and put it in players.csv. This is our number one priority right now.
 # Inform the player of their
+# FIXME commas and spaces in user names could occur
 @bot.command()
 async def join(ctx, url, rank=None):
     ctx.send("Signups are closed! Contact a tournament administrator and we will see what we can do ;)")
@@ -196,24 +198,28 @@ async def make_mrchance_happy2(ctx):
 
     index= {state[i][0]:i for i in range(len(state))}
 
-    for i in range(len(state)):
-        p = state[i]
-        name= await ctx.guild.fetch_member(p[0])
-        name= name.display_name
+    with open("data/tournament.csv", "w") as f:
+        writer= csv.writer(f)
 
-        lines.append(f"{i+1},{name},{p[1]},{p[2]},{p[3]},{p[4]}")
-        for opp in p[5]:
-            if opp[0]!=0:
-                opp_position= index[opp[0]]+1
-                lines[-1]+= ","+column_format.format(opp_position,opp[1],opp[2]+str(opp[3]) )
-                if opp[4]!="":
-                    lines[-1]+=","+ogs_game_url+opp[4]
-                else: lines[-1]+=","
-            else:
-                lines[-1]+= ","+column_format.format(0, opp[1], "")+","
-        lines[-1]+="\n"
+        for i in range(len(state)):
+            p = state[i]
+            name= await ctx.guild.fetch_member(p[0])
+            name= name.display_name
 
-    with open("data/tournament.csv", "w") as f: f.writelines(lines)
+            #lines.append(f"{i+1},{name},{p[1]},{p[2]},{p[3]},{p[4]}")
+            fields= [i+1,name, p[1],p[2],p[3],p[4]]
+
+            for opp in p[5]:
+                if opp[0]!=0:
+                    opp_position= index[opp[0]]+1
+                    fields.append(column_format.format(opp_position,opp[1],opp[2]+str(opp[3]) ))
+                    if opp[4]!="":
+                        fields.append(ogs_game_url+opp[4])
+                    else: fields.append("")
+                else:
+                    fields.append(column_format.format(0, opp[1], ""))
+            writer.writerow(fields)
+
     return
 
 def pretty_print(state):
@@ -450,6 +456,10 @@ async def result(ctx, url):
 
                 # XXX perhaps check for correct handicap and time settings too?
 
+                if(request_result["outcome"]==""):
+                    await ctx.send("This game is not finished! Report it again once it is please!")
+                    return
+
                 if(ogs_id1== request_result["white" if colour=='b' else "black"]):
                     await ctx.send("This game was played with the wrong colors. It is okay but please be careful next time!")
                     colour="b" if colour =="w" else "w"
@@ -533,6 +543,7 @@ async def outcome(ctx, idx1, result):
     with open("data/state.txt", "w") as f: f.write(repr((r,state)))
     #await make_mrchance_happy2(ctx)
     #await ctx.send(file=discord.File("data/tournament.csv"))
+
     text= pretty_print(state)
     await ctx.send(text)
     return
@@ -545,6 +556,9 @@ async def standings(ctx):
     with open("data/state.txt") as f: r,state = ast.literal_eval(f.read())
     text= pretty_print(state)
     await ctx.send(text)
+
+    await make_mrchance_happy2(ctx)
+    await ctx.send(file=discord.File("data/tournament.csv"))
 
 #bot.loop.create_task(background_task())
 bot.run(token)
