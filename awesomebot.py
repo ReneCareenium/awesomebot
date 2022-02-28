@@ -218,6 +218,7 @@ async def make_mrchance_happy2(ctx):
                     else: fields.append("")
                 else:
                     fields.append(column_format.format(0, opp[1], ""))
+                    fields.append("")
             writer.writerow(fields)
 
     return
@@ -516,6 +517,7 @@ async def result(ctx, url):
 #    with open("data/state.txt", "w") as f: f.write(repr((r,state)))
 #    return #XXX
 
+#TODO outcome should receive an OGS game link as an optional argument
 @bot.command()
 async def outcome(ctx, idx1, result):
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
