@@ -77,8 +77,8 @@ async def help(ctx):
 # Wipe players.csv games.csv and put state.csv to (0,[])
 @bot.command()
 async def join(ctx, url, rank=None):
-    #ctx.send("Signups are closed! Contact a tournament administrator and we will see what we can do ;)")
-    #return
+    ctx.send("Signups are closed! Contact a tournament administrator and we will see what we can do ;)")
+    return
     if ctx.guild.id!= awesome_server_id or ctx.channel.id not in permitted_channel_ids: return
 
     if url[-1]=="/": player_id= url.split('/')[-2]
